@@ -23,7 +23,7 @@ def cv2_improve_plate_img(
     blur: int = 5,
     block_size: int = 151,
     c: float = 2,
-    min_plate_area: float = 0.5,
+    min_plate_area: float = 0.3,
 ) -> cv2.typing.MatLike | None:
     plate = cv2.cvtColor(plate, cv2.COLOR_BGR2GRAY)
     thresh = cv2.adaptiveThreshold(
@@ -84,7 +84,9 @@ def plate2text(plate: cv2.typing.MatLike, reader: easyocr.Reader | None = None) 
         slope_ths=0.01,
         add_margin=0,
     )
-    filtered = (
+    filtered = re.sub(
+        r"[o. ]+",
+        " ",
         " ".join(
             text
             for _, text in sorted(
@@ -96,9 +98,7 @@ def plate2text(plate: cv2.typing.MatLike, reader: easyocr.Reader | None = None) 
                 ),
                 key=lambda x: x[0][0][0],  # Sort by x coordinate
             )
-        )
-        .replace("o", " ")
-        .replace(".", " ")
+        ),
     )
     logging.getLogger(__name__).debug(f"OCR result: {result} => {filtered}")
     return filtered
