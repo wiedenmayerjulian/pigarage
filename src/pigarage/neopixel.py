@@ -2,6 +2,7 @@ import functools
 import operator
 import threading
 import time
+from typing import Literal
 
 try:
     import spidev
@@ -54,6 +55,7 @@ class NeopixelSpi:
         self.state = leds * [(0, 0, 0)]
         self._task = None
         self._task_lock = threading.RLock()
+        self.color = (0, 0, 0)
         self.clear()
 
     def update(self, newstate: list[tuple[int, int, int]] | None = None) -> None:
@@ -68,9 +70,13 @@ class NeopixelSpi:
         self.stop()
         self.fill(0, 0, 0)
 
-    def fill(self, red: int, green: int, blue: int) -> None:
+    def fill(
+        self,
+        color: tuple[int, int, int] | None = None,
+    ) -> None:
         self.stop()
-        self.state = len(self.state) * [(red % 256, green % 256, blue % 256)]
+        color = color or self.color
+        self.state = len(self.state) * [color]
         self.update()
 
     def fade(
@@ -82,7 +88,7 @@ class NeopixelSpi:
     ) -> None:
         for i in range(steps + 1):
             self.fill(
-                *tuple(
+                tuple(
                     round(c1 + (c2 - c1) / steps * i)
                     for c1, c2 in zip(color_from, color_to, strict=False)
                 )
@@ -91,20 +97,21 @@ class NeopixelSpi:
 
     def pulse_once(
         self,
-        color: tuple[int, int, int],
+        color: tuple[int, int, int] | None = None,
         amplitude: float = 1.0,
         duration: float = 0.5,
         steps: int | str = "auto",
     ) -> None:
         if steps == "auto":
             steps = int(20 * duration)
+        color = color or self.color
         color_to = [(1 - amplitude) * c for c in color]
         self.fade(color, color_to, duration=duration / 2, steps=steps)
         self.fade(color_to, color, duration=duration / 2, steps=steps)
 
     def pulse(
         self,
-        color: tuple[int, int, int],
+        color: tuple[int, int, int] | None = None,
         amplitude: float = 1.0,
         duration: float = 0.5,
         steps: int | str = "auto",
@@ -129,15 +136,24 @@ class NeopixelSpi:
             self._task.join()
             self._task = None
 
-    def roll_once(self, color: tuple[int, int, int], duration: int = 2.0) -> None:
+    def roll_once(
+        self,
+        color: tuple[int, int, int] | None = None,
+        duration: float = 2.0,
+    ) -> None:
         self.stop()
+        color = color or self.color
         for i in range(len(self.state)):
             state = len(self.state) * [(0, 0, 0)]
             state[i] = color
             self.update(state)
             time.sleep(duration / len(self.state))
 
-    def roll(self, color: tuple[int, int, int], duration: int = 2.0) -> None:
+    def roll(
+        self,
+        color: tuple[int, int, int] | None = None,
+        duration: float = 2.0,
+    ) -> None:
         self.stop()
         with self._task_lock:
             self._task = StoppableTask(
@@ -147,6 +163,44 @@ class NeopixelSpi:
                 )
             )
             self._task.start()
+
+    def sweep(
+        self,
+        direction: Literal["ltr", "rtl", "ttb", "btt"],
+        color: tuple[int, int, int] | None = None,
+        duration: float = 2.0,
+    ) -> None:
+        self.stop()
+        with self._task_lock:
+            self._task = StoppableTask(
+                func=lambda: self.sweep_once(
+                    direction=direction,
+                    color=color,
+                    duration=duration,
+                )
+            )
+            self._task.start()
+
+    def sweep_once(
+        self,
+        direction: Literal["ltr", "rtl", "ttb", "btt"],
+        color: tuple[int, int, int] | None = None,
+        duration: float = 2.0,
+    ) -> None:
+        self.stop()
+        count = len(self.state) // 2
+        color = color or self.color
+        for i in range(count):
+            state = len(self.state) * [(0, 0, 0)]
+            match direction:
+                case "ttb":
+                    state[i] = color
+                    state[-i] = color
+                case "btt":
+                    state[count - i] = color
+                    state[-(count - i)] = color
+            self.update(state)
+            time.sleep(duration / count)
 
 
 if __name__ == "__main__":

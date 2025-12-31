@@ -4,6 +4,7 @@ import re
 import time
 from pathlib import Path
 from queue import Queue
+from typing import Callable
 
 import cv2
 import easyocr
@@ -110,6 +111,7 @@ class OcrDetector(PausableNotifingThread):
         detected_plates: Queue,
         allowed_plates: list[str],
         ocr_regex: str = r"[A-Z]{1,2}\.? ?\.?[A-Z]{0,2} ?[0-9]{2,4}$",
+        on_ocr_detected: Callable[[str], None] = lambda _: None,
         *,
         debug: bool = False,
     ) -> None:
@@ -120,6 +122,7 @@ class OcrDetector(PausableNotifingThread):
         self._ocr_regex = ocr_regex
         self._reader = easyocr.Reader(["en"], gpu=False, verbose=False)
         self.allowed_plates = allowed_plates
+        self._on_ocr_detected = on_ocr_detected
 
     def resume(self) -> None:
         while self.detected_ocrs.qsize() > 0:
@@ -153,6 +156,8 @@ class OcrDetector(PausableNotifingThread):
         result = plate2text(plate, reader=self._reader)
         ocr = self._postprocess(result)
         self._log.info(f"OCR: '{result.strip()}' -> '{ocr}'")
+        if ocr is not None:
+            self._on_ocr_detected(ocr)
         if ocr is not None and ocr in self.allowed_plates:
             self.detected_ocrs.put(ocr)
             self._notify_waiters()

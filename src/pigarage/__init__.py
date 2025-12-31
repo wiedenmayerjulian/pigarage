@@ -136,6 +136,7 @@ class PiGarage:
             cam_setting="main",
             debug=debug,
             on_notifying=self.on_plate_detected,
+            on_direction=self.on_direction,
         )
         self.license_plate_processor = LicensePlateProcessor(
             diff_detector=DifferenceDetector(
@@ -150,6 +151,7 @@ class PiGarage:
                 debug=debug,
                 detected_plates=plate_detector.detected_plates,
                 allowed_plates=allowed_plates,
+                on_ocr_detected=self.on_ocr,
             ),
             on_allowed=self.on_allowed,
             on_allowed_and_direction=self.on_allowed_and_direction,
@@ -171,7 +173,21 @@ class PiGarage:
     ) -> None:
         self._log.debug("")
         self._allowed_detected = True
-        self.neopixel.roll(color=(0, 255, 0))
+        self.neopixel.color = (0, 255, 0)
+
+    def on_direction(
+        self,
+        direction: Literal["arriving", "leaving"],
+    ) -> None:
+        self.neopixel.sweep(
+            direction="ttb" if direction == "arriving" else "btt",
+        )
+
+    def on_ocr(
+        self,
+        _ocr: str,
+    ) -> None:
+        self.neopixel.color = (255, 255, 0)
 
     def on_plate_detected(self) -> None:
         if not self._allowed_detected:

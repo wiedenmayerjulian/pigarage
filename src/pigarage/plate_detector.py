@@ -5,6 +5,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from queue import Queue
+from typing import Literal
 
 import cv2
 import ultralytics
@@ -90,6 +91,7 @@ class PlateDetector(PausableNotifingThread):
         cam_setting: str = "main",
         on_resume: Callable[[], None] = lambda: None,
         on_notifying: Callable[[], None] = lambda: None,
+        on_direction: Callable[[Literal["arriving", "leaving"]], None] = lambda: None,
         direction_min_distance: int = 50,
         direction_ignore_distance: int = 5,
         different_plate_distance: int = 100,
@@ -105,6 +107,7 @@ class PlateDetector(PausableNotifingThread):
         )
         self._cam = cam
         self._cam_setting = cam_setting
+        self._on_direction = on_direction
         self._debug = debug
         self.detected_plates = Queue(maxsize=0)
         self.detected_directions = Queue(maxsize=0)
@@ -184,6 +187,7 @@ class PlateDetector(PausableNotifingThread):
             direction = "arriving" if diff > 0 else "leaving"
             self._log.debug(f"direction: {direction}")
             self.detected_directions.put(direction)
+            self._on_direction(direction)
             self._notify_waiters()
 
     def process(self) -> None:
