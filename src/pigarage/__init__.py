@@ -93,12 +93,18 @@ class PiGarage:
         self._log = logging.getLogger(self.__class__.__name__)
 
         # Setup MQTT client
-        self.mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+        self.mqtt_client = mqtt.Client(
+            mqtt.CallbackAPIVersion.VERSION2,
+            client_id="pigarage",
+            clean_session=False,
+        )
         self.mqtt_client.username_pw_set(username=mqtt_username, password=mqtt_password)
-        self.mqtt_client.connect(mqtt_host)
-        options = SubscribeOptions(qos=2, noLocal=True)
-        self.mqtt_client.subscribe("pigarage/+", options=options)
         self.mqtt_client.on_message = self.mqtt_receive
+        self.mqtt_client.connect(mqtt_host)
+        self.mqtt_client.subscribe(
+            "pigarage/+",
+            options=SubscribeOptions(qos=2, noLocal=True),
+        )
         self.mqtt_client.loop_start()
 
         # Setup GPIO devices
