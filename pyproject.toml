@@ -16,6 +16,15 @@ dependencies = [
 dev = ["pytest>=9.0.2", "ruff>=0.14.9"]
 raspi = ["picamera2>=0.3.33", "spidev>=3.8"]
 
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu" }]
+torchvision = [{ index = "pytorch-cpu" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
 [project.scripts]
 pigarage = "pigarage.__main__:main"
 pigarage-ocr-detector = "pigarage.ocr_detector:main"
