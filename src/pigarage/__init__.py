@@ -136,7 +136,7 @@ class PiGarage:
         self.cam.start()
 
         # Setup license plate processor
-        self._allowed_detected = False
+        self._state = set()
         plate_detector = PlateDetector(
             self.cam,
             cam_setting="main",
@@ -165,12 +165,13 @@ class PiGarage:
 
     def on_idle(self) -> None:
         self._log.debug("")
-        self._allowed_detected = False
+        self._state.clear()
         self.neopixel.clear()
         self.ir_light.turn_off()
 
     def on_diff_detected(self) -> None:
         self._log.debug("")
+        self._state.add("diff")
         self.ir_light.turn_on()
 
     def on_allowed(
@@ -178,27 +179,32 @@ class PiGarage:
         _plate: str,
     ) -> None:
         self._log.debug("")
-        self._allowed_detected = True
+        self._state.add("allowed")
         self.neopixel.color = (0, 255, 0)
 
     def on_direction(
         self,
         direction: Literal["arriving", "leaving"],
     ) -> None:
+        self._state.add("direction")
         self.neopixel.sweep(
-            direction="ttb" if direction == "arriving" else "btt",
+            direction="btt" if direction == "arriving" else "tbb",
         )
 
     def on_ocr(
         self,
         _ocr: str,
     ) -> None:
+        self._state.add("ocr")
         self.neopixel.color = (255, 255, 0)
 
     def on_plate_detected(self) -> None:
-        if not self._allowed_detected:
+        if "plate" not in self._state:
             self._log.debug("")
-            self.neopixel.roll(color=(0, 0, 255), duration=1.0)
+            self._state.add("plate")
+            if "ocr" not in self._state:
+                self.neopixel.color = (0, 0, 255)
+            self.neopixel.roll(duration=1.0)
 
     def on_allowed_and_direction(
         self,
@@ -235,7 +241,7 @@ class PiGarage:
             # Pause entire processing for a while
             time.sleep(30)
 
-    def mqtt_receive(
+    def mqtt_receive(  # noqa: C901, PLR0912
         self,
         _client: mqtt.Client,
         _data: any,
@@ -244,7 +250,38 @@ class PiGarage:
         self._log.debug(f"mqtt_receive: {message.topic}, {message.payload}")
         match message.topic:
             case "pigarage/gate":
-                if message.payload == b"open":
-                    self.gate.open()
-                elif message.payload == b"close":
-                    self.gate.close()
+                match message.payload:
+                    case b"open":
+                        self.gate.open()
+                    case b"close":
+                        self.gate.close()
+            case "pigarage/debug":
+                match message.payload:
+                    case "on_idle":
+                        self.on_idle()
+                    case "on_diff_detected":
+                        self.on_diff_detected()
+                    case "on_allowed":
+                        self.on_allowed("DEBUG")
+                    case s if s.startswith("on_direction"):
+                        self.on_direction(s.split()[1])
+                    case "on_ocr":
+                        self.on_ocr("DEBUG")
+                    case "on_plate_detected":
+                        self.on_plate_detected()
+                    case s if s.startswith("on_allowed_and_direction"):
+                        self.on_allowed_and_direction("DEBUG", s.split()[1])
+
+                    case "neopixel_clear":
+                        self.neopixel.clear()
+                    case s if s.startswith("neopixel_color"):
+                        color = tuple(int(x) for x in s.split()[1:])
+                        self.neopixel.color = color
+                    case "neopixel_fill":
+                        self.neopixel.fill()
+                    case "neopixel_pulse":
+                        self.neopixel.pulse()
+                    case "neopixel_roll":
+                        self.neopixel.roll()
+                    case s if s.startswith("neopixel_sweep"):
+                        self.neopixel.sweep(s.split()[1])
