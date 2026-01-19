@@ -1,3 +1,5 @@
+# ruff: noqa: ERA001
+
 import functools
 import operator
 import threading

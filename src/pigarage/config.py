@@ -29,5 +29,21 @@ class Config:
     def logdir(self) -> Path:
         return Path(self.logging.get("logdir", ".")).resolve()
 
+    @property
+    def server(self) -> SectionProxy:
+        return (
+            self.config["pigarage-server"]
+            if self.config.has_section("pigarage-server")
+            else {}
+        )
+
+    @property
+    def client(self) -> SectionProxy:
+        return (
+            self.config["pigarage-client"]
+            if self.config.has_section("pigarage-client")
+            else {}
+        )
+
 
 config = Config()

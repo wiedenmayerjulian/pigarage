@@ -91,7 +91,7 @@ class PlateDetector(PausableNotifingThread):
         cam_setting: str = "main",
         on_resume: Callable[[], None] = lambda: None,
         on_notifying: Callable[[], None] = lambda: None,
-        on_direction: Callable[[Literal["arriving", "leaving"]], None] = lambda: None,
+        on_direction: Callable[[Literal["arriving", "leaving"]], None] = lambda _: None,
         direction_min_distance: int = 50,
         direction_ignore_distance: int = 5,
         different_plate_distance: int = 100,

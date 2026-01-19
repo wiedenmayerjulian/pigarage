@@ -86,7 +86,7 @@ def test_direction_detected():
         lambda: detector.detected_directions.qsize() > 0 and detector.pause()
     )
     Thread(target=lambda: time.sleep(1) or detector.start()).start()
-    for _ in range(5):
+    while detector.detected_directions.qsize() == 0:
         detector.wait()
     assert detector.detected_directions.get_nowait() == "arriving"
 
