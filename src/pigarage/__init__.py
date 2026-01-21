@@ -188,7 +188,7 @@ class PiGarage:
     ) -> None:
         self._state.add("direction")
         self.neopixel.sweep(
-            direction="btt" if direction == "arriving" else "tbb",
+            direction="btt" if direction == "arriving" else "ttb",
         )
 
     def on_ocr(
@@ -256,7 +256,7 @@ class PiGarage:
                     case b"close":
                         self.gate.close()
             case "pigarage/debug":
-                match message.payload:
+                match message.payload.decode():
                     case "on_idle":
                         self.on_idle()
                     case "on_diff_detected":

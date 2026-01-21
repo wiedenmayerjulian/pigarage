@@ -145,7 +145,6 @@ class OcrDetector(PausableNotifingThread):
             f"{pigarage_config.client['url']}/ocr",
             headers={"auth": pigarage_config.client["auth"]},
             data=cv2.imencode(".jpg", plate)[1].tobytes(),
-            timeout=2,
         )
         if response.status_code != HTTPStatus.OK:
             raise HTTPException(f"Remote OCR failed with {response.status_code}")
