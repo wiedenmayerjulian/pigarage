@@ -109,8 +109,8 @@ class PlateDetector(PausableNotifingThread):
         self._cam_setting = cam_setting
         self._on_direction = on_direction
         self._debug = debug
-        self.detected_plates = Queue(maxsize=0)
-        self.detected_directions = Queue(maxsize=0)
+        self.detected_plates = Queue(maxsize=10)
+        self.detected_directions = Queue(maxsize=1)
         self._direction_min_distance = direction_min_distance
         self._direction_ignore_distance = direction_ignore_distance
         self._different_plate_distance = different_plate_distance
@@ -147,7 +147,8 @@ class PlateDetector(PausableNotifingThread):
         for i, box in enumerate(boxes):
             if self._history.add_or_update(box):
                 self._log.debug(
-                    f"New plate detected at ({box.center_x}, {box.center_y})"
+                    f"New plate detected at ({len(self._history._boxes)}, "  # noqa: SLF001
+                    f"{box.center_x}, {box.center_y})"
                 )
                 if self._debug:
                     cv2.imwrite(
@@ -169,20 +170,29 @@ class PlateDetector(PausableNotifingThread):
 
     def _detect_direction(self, img: cv2.typing.MatLike, boxes: list[Box]) -> None:
         """Detect direction of plates based on y position changes."""
-        for box in boxes:
+        for box_index, box in enumerate(boxes):
             prev = self._history.get(box)
             if prev is None:
                 continue
             if abs(box.center_y - prev.center_y) < self._direction_ignore_distance:
+                # Continue if movement of this box is too small to update the plate
                 continue
-            self._log.debug(f"Plate updated ({box.center_x}, {box.center_y})")
+            self._log.debug(
+                f"Plate updated ({box_index}, {box.center_x}, {box.center_y})"
+            )
 
-            self.detected_plates.put(img[box.y1 : box.y2, box.x1 : box.x2])
-            self._notify_waiters()
+            if self.detected_plates.qsize() < self.detected_plates.maxsize:
+                self.detected_plates.put(img[box.y1 : box.y2, box.x1 : box.x2])
+                self._notify_waiters()
+
+            if self.detected_directions.qsize() > 0:
+                # Continue if direction already detected
+                continue
 
             diff = box.center_y - prev.center_y
             if abs(diff) < self._direction_min_distance:
-                return
+                # Continue if movement is still too small
+                continue
 
             direction = "arriving" if diff > 0 else "leaving"
             self._log.debug(f"direction: {direction}")

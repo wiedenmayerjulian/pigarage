@@ -141,6 +141,7 @@ class PiGarage:
             self.cam,
             cam_setting="main",
             debug=debug,
+            direction_min_distance=25,
             on_notifying=self.on_plate_detected,
             on_direction=self.on_direction,
         )

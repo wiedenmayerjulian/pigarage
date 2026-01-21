@@ -168,6 +168,7 @@ class OcrDetector(PausableNotifingThread):
         return None
 
     def _process_remote(self, plate: cv2.typing.MatLike) -> str | None:
+        logging.getLogger(__name__).debug("Using remote OCR")
         plate = cv2.cvtColor(plate, cv2.COLOR_BGR2GRAY)
         response = self._remote_session.post(
             f"{pigarage_config.client['url']}/ocr",
@@ -179,6 +180,7 @@ class OcrDetector(PausableNotifingThread):
         return response.json().get("result")
 
     def _process_local(self, plate: cv2.typing.MatLike) -> str | None:
+        logging.getLogger(__name__).debug("Using local OCR")
         plate = cv2_improve_plate_img(plate)
         if plate is None:
             return None
