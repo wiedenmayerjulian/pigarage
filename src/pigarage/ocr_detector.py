@@ -138,13 +138,14 @@ def plate2text(plate: cv2.typing.MatLike, reader: easyocr.Reader | None = None) 
 
 
 class OcrDetector(PausableNotifingThread):
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         detected_plates: Queue,
         allowed_plates: list[str],
         ocr_regex: str = r"[A-Z]{1,2}\.? ?\.?[A-Z]{0,2} ?[0-9]{2,4}$",
         on_ocr_detected: Callable[[str], None] = lambda _: None,
         *,
+        cv2_improve_plate_img_kwargs: dict | None = None,
         debug: bool = False,
     ) -> None:
         super().__init__()
@@ -156,6 +157,7 @@ class OcrDetector(PausableNotifingThread):
         self.allowed_plates = allowed_plates
         self._on_ocr_detected = on_ocr_detected
         self._remote_session = requests.Session()
+        self._cv2_improve_plate_img_kwargs = cv2_improve_plate_img_kwargs
 
     def resume(self) -> None:
         while self.detected_ocrs.qsize() > 0:
@@ -182,7 +184,9 @@ class OcrDetector(PausableNotifingThread):
 
     def _process_local(self, plate: cv2.typing.MatLike) -> str | None:
         logging.getLogger(__name__).debug("Using local OCR")
-        plate = cv2_improve_plate_img(plate)
+        plate = cv2_improve_plate_img(
+            plate, **(self._cv2_improve_plate_img_kwargs or {})
+        )
         if plate is None:
             return None
         if self._debug:

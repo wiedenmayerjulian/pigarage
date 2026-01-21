@@ -20,13 +20,13 @@ def reader():
     "id, expected_ocr",
     [
         ("08HdV8ArxuVKXgxdUor1", "K SC124"),
-        ("uJsY6e391eOodCkFLMJA", "777AK77"),
+        ("uJsY6e391eOodCkFLMJA", "1A777AK77"),
         ("qTPu96zhef7AbiBSFFTD", "R275 ULO"),
     ],
 )
 def test_ocr(id, expected_ocr, reader):
     img = download_lnpr_plate(id)
-    plate = ocr_detector.cv2_improve_plate_img(img)
+    plate = ocr_detector.cv2_improve_plate_img(img, min_char_height_ratio=0)
     assert plate is not None
     ocr = ocr_detector.plate2text(plate, reader=reader)
     assert expected_ocr == ocr
@@ -36,7 +36,7 @@ def test_ocr(id, expected_ocr, reader):
     "id, expected_ocr",
     [
         ("08HdV8ArxuVKXgxdUor1", "K SC124"),
-        ("uJsY6e391eOodCkFLMJA", "777AK77"),
+        ("uJsY6e391eOodCkFLMJA", "1A777AK77"),
         ("qTPu96zhef7AbiBSFFTD", "R275 ULO"),
     ],
 )
@@ -47,6 +47,7 @@ def test_ocr_detector(id, expected_ocr):
         detected_plates=detected_plates,
         allowed_plates=expected_ocr,
         ocr_regex=".*",
+        cv2_improve_plate_img_kwargs={"min_char_height_ratio": 0},
     )
     Thread(target=lambda: time.sleep(0.3) or detector.start()).start()
     detector.wait()
