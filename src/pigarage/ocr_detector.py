@@ -22,14 +22,33 @@ TRACE = 5
 logging.addLevelName(TRACE, "TRACE")
 
 
-def cv2_improve_plate_img(
+def cv2_contours_append_children(
+    hierarachy: np.ndarray,
+    idx: int,
+    idxs: set[int],
+) -> None:
+    if (child := hierarachy[0][idx][2]) != -1:
+        idxs.add(child)
+        cv2_contours_append_children(hierarachy, child, idxs)
+    if (sibling := hierarachy[0][idx][0]) != -1:
+        idxs.add(sibling)
+        cv2_contours_append_children(hierarachy, sibling, idxs)
+
+
+def cv2_improve_plate_img(  # noqa: PLR0913
     plate: cv2.typing.MatLike,
-    blur: int = 5,
-    block_size: int = 151,
+    blur: int = 3,
+    block_size: int = 181,
     c: float = 2,
+    clahe_clip: float = 2.0,
+    clahe_tile: int = 5,
     min_plate_area: float = 0.3,
 ) -> cv2.typing.MatLike | None:
     plate = cv2.cvtColor(plate, cv2.COLOR_BGR2GRAY) if len(plate.shape) == 3 else plate  # noqa: PLR2004
+    plate = cv2.createCLAHE(
+        clipLimit=clahe_clip,
+        tileGridSize=(clahe_tile, clahe_tile),
+    ).apply(plate)
     thresh = cv2.adaptiveThreshold(
         src=cv2.medianBlur(plate, blur),
         maxValue=255,
@@ -40,7 +59,9 @@ def cv2_improve_plate_img(
     )
 
     # Calculate contours
-    contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    contours, hierarachy = cv2.findContours(
+        thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
+    )
     # Calculate areas of contours and sort them descending
     areas = np.array([cv2.contourArea(c) for c in contours])
     if np.all(areas == 0):
@@ -56,9 +77,16 @@ def cv2_improve_plate_img(
         )
         return None
 
+    heights = np.array([cv2.boundingRect(c)[3] for c in contours], dtype=np.float32)
+    heights /= heights[idxs[0]]
+
+    idxs_to_draw = {i for i in idxs[1:] if heights[i] > 0.5}
+    for i in idxs_to_draw.copy():
+        cv2_contours_append_children(hierarachy, i, idxs_to_draw)
+
     masked = cv2.drawContours(
         cv2.bitwise_not(np.zeros(thresh.shape).astype(thresh.dtype)),
-        [contours[i] for i in idxs[1:]],
+        [contours[i] for i in idxs_to_draw],
         -1,
         color=(0, 0, 0),
         thickness=cv2.FILLED,
