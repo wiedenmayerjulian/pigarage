@@ -36,7 +36,7 @@ async def ocr(request: Request) -> dict[str, str]:
     logging.getLogger("uvicorn").info(
         f"OCR processed in {time.time() - t:.2f} seconds: {result}"
     )
-    return {"result": result}
+    return {"result": result or ""}
 
 
 def main() -> None:

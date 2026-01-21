@@ -43,6 +43,7 @@ def cv2_improve_plate_img(  # noqa: PLR0913
     clahe_clip: float = 2.0,
     clahe_tile: int = 5,
     min_plate_area: float = 0.3,
+    min_char_height_ratio: float = 0.5,
 ) -> cv2.typing.MatLike | None:
     plate = cv2.cvtColor(plate, cv2.COLOR_BGR2GRAY) if len(plate.shape) == 3 else plate  # noqa: PLR2004
     plate = cv2.createCLAHE(
@@ -80,7 +81,7 @@ def cv2_improve_plate_img(  # noqa: PLR0913
     heights = np.array([cv2.boundingRect(c)[3] for c in contours], dtype=np.float32)
     heights /= heights[idxs[0]]
 
-    idxs_to_draw = {i for i in idxs[1:] if heights[i] > 0.5}
+    idxs_to_draw = {i for i in idxs[1:] if heights[i] > min_char_height_ratio}
     for i in idxs_to_draw.copy():
         cv2_contours_append_children(hierarachy, i, idxs_to_draw)
 
