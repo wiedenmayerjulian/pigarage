@@ -82,6 +82,12 @@ def cv2_improve_plate_img(  # noqa: PLR0913
     heights /= heights[idxs[0]]
 
     idxs_to_draw = {i for i in idxs[1:] if heights[i] > min_char_height_ratio}
+    if hierarachy.shape[1] > 1000:  # noqa: PLR2004
+        logging.getLogger(__name__).log(
+            TRACE,
+            f"Too many contours ({len(hierarachy)}), skipping child contours",
+        )
+        return None
     for i in idxs_to_draw.copy():
         cv2_contours_append_children(hierarachy, i, idxs_to_draw)
 
